@@ -1,0 +1,148 @@
+-MANUALE VIRSH
+modprobe kvm
+modprobe kvm-intel
+
+
+-CREARE POOL:
+virsh pool-define-as debian dir --target /var/lib/libvirt/images/debian/
+virsh pool-build debian
+virsh pool-start debian
+virsh pool-autostart debian
+virsh pool-info  debian
+virsh pool-destroy debian
+virsh pool-undefine debian
+
+
+-CREARE DISCO:
+qemu-img create -f qcow2 /var/lib/libvirt/images/debian/debian.qcow2 10G
+qemu-img create -f raw /var/lib/libvirt/images/debian/debian.img 10G
+
+-RESIZE:
+virsh vol-list --pool default
+virsh vol-resize win7.img 25G --pool default
+
+
+-CREARE VM:
+
+virt-install --name=beta --ram=2048 --cpu=host --vcpus=2 --disk path=/var/lib/libvirt/images/debian/debian.img --cdrom=/home/alexis/storage1/lxde.iso --network bridge:br0,model=virtio --graphics vnc,listen=0.0.0.0,port=20001 --noautoconsole -vnc
+
+-LISTA VM= virsh list --all
+
+-FERMARE= virsh shutdown VM
+
+-ALIMENTAZIONE= virsh destroy VM
+
+-ELIMINARE= virsh undefine VM
+
+-AVVIARE= virsh start vm
+
+-CAMBIARE NOME:
+/etc/libvirt/qemu/c.xml --->debian.xml
+vi /etc/libvirt/qemu/debian.xml MODIFICARE IL FILE ALL'INTERNO
+service libvirtd restart
+
+
+
+
+-BOOT CDROM E MENU' BOOT:
+(leggere impostazione vm da xml: virsh dumpxml nomevm)
+
+ <os>
+    <type arch='x86_64' machine='pc-i440fx-2.1'>hvm</type>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+    <bootmenu enable='yes'/>
+  </os>
+
+<disk type='file' device='cdrom'>
+  <driver name='qemu' type='raw'/>
+  <source file='file.iso'/>
+  <target dev='hdc' bus='ide'/>  ------> CONTROLLARE
+  <address type='drive' controller='0' bus='1' unit='0'/>
+  <readonly/>
+</disk>
+
+----- ORIGINALE -----
+
+<disk type='block' device='cdrom'>
+  <target dev='hdc' bus='ide'/>  ------> CONTROLLARE
+  <readonly/>
+</disk>
+
+
+
+
+
+-ALTRE OPZIONI:
+<graphics type='vnc' port='5900' autoport='no' keymap='it'/>
+
+### Restartare il service libvirtd 
+
+
+-INSTALLARE DA MIRROR:
+virt-install --name=prova --ram=2048 --disk path=/media/storage1/vm/ubuntu_server,bus=virtio,size=8 --location=http://us.archive.ubuntu.com/ubuntu/dists/wily/main/installer-amd64/ --network bridge:br0 --nographics -x "console=ttyS0"
+
+
+-INSTALLAZIONE COMPLETA:
+virt-install --name=prova --ram=2048 --vcpus=2 --cpu=host --disk path=/media/storage1/vm/test,bus=virtio,size=8 --cdrom=/media/storage1/os/deepin-15.3-amd64.iso --network bridge:br0 --graphics vnc,listen=0.0.0.0,port=20001 --noautoconsole -vnc --hvm
+
+-INSTALLARE WINDOWS:
+virt-install --name=win7 --vcpu=2 --cpu host --ram 2048 --disk win.qcow2,format=qcow2,bus=ide,size=10,cache=none --cdrom=/home/alexis/Storage/ISO/win7.iso --network bridge:br0 --graphics vnc,listen=0.0.0.0,port=20001 --noautoconsole -vnc --hvm
+
+-LISTA HYPERVISOR:
+apt-get install libosinfo-bin
+# osinfo-query os
+
+
+-XML:
+esportare= virsh dumpxml name_of_vm > file.xml (con image della vm)
+importare= virsh define file.xml (con image della vm)
+
+-CLONARE:
+virt-clone -o vm -n newvm --auto-clone
+
+-VNC PASSWORD:
+<graphics type='vnc' port='20001' autoport='no' listen='0.0.0.0' passwd='ale'>
+
+-SCHEDA VIDEO:
+    ...
+    <video>
+      <model type='qxl' ram='131072' vram='131072' vgamem='65536' heads='1'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
+    </video>
+    ...
+
+-CREARE POOL DEFAULT:
+# virsh pool-define /dev/stdin <<EOF
+<pool type='dir'>
+  <name>default</name>
+  <target>
+    <path>/var/lib/libvirt/images</path>
+  </target>
+</pool>
+EOF
+
+
+-SCHEDA DI RETE:
+    <interface type='bridge'>
+      <mac address='52:54:00:68:f3:4d'/>
+      <source bridge='br0'/>
+      <model type='rtl8139'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+    </interface>
+
+
+
+virsh pool-start default
+virsh pool-autostart default
+
+-ENTRARE IN CONSOLE:
+virsh console nomevm
+
+-INFO VM:
+virsh dominfo nomevm
+
+-ESPORTARE XML
+virsh dumpxml vm > /tmp/vm.xml
+(modificare il file vm.xml)
+virsh define /tmp/vm.xml
